@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Today’s information diet</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body><main>
+  <header><h1>Today</h1><p>{{ today }} · Hong Kong</p></header>
+  {% if failed_today %}<aside>Today’s source refresh failed: {{ failed_today.source_message }}. Showing list prepared for {{ daily.date if daily else 'no prior date' }}.</aside>{% endif %}
+  <section id="saved-episodes">
+    <p class="slot">Saved episodes</p>
+    <h2>Your listening</h2>
+    {% if not saved_episodes|default([]) %}<p>No saved episodes yet.</p>{% endif %}
+    {% for episode in saved_episodes|default([]) %}
+    <article class="saved-episode" id="saved-episode-{{ episode.id }}">
+      <p class="slot">{{ episode.show }}</p>
+      <h3>{{ episode.title }}</h3>
+      {% if episode.episode_url %}<p><a href="{{ episode.episode_url }}" target="_blank" rel="noopener noreferrer">Open episode page</a></p>{% endif %}
+      <p>Status: {{ episode.state }}{% if episode.playback_position %} · position: {{ episode.playback_position }}{% endif %}</p>
+      <form method="post" action="/saved-episodes/{{ episode.id }}/progress">
+        <input type="hidden" name="csrf_token" value="{{ csrf }}">
+        <label>Status <select name="state"><option value="saved"{% if episode.state == 'saved' %} selected{% endif %}>Saved</option><option value="listening"{% if episode.state == 'listening' %} selected{% endif %}>Listening</option><option value="completed"{% if episode.state == 'completed' %} selected{% endif %}>Completed</option></select></label>
+        <label>Episode position (optional) <input name="position" value="{{ episode.playback_position or '' }}" placeholder="42:15"></label>
+        <button>Save progress</button>
+      </form>
+      <form method="post" action="/saved-episodes/{{ episode.id }}/notes"><input type="hidden" name="csrf_token" value="{{ csrf }}"><label>Notes or ideas <textarea name="note" rows="3" required></textarea></label><button>Save note</button></form>
+      {% if episode.notes %}<h4>Saved notes</h4><ol class="note-history">{% for entry in episode.notes %}<li><time datetime="{{ entry.created_at }}">{{ entry.created_at[:16] | replace('T', ' ') }}</time><br>{{ entry.note }}</li>{% endfor %}</ol>{% endif %}
+    </article>
+    {% endfor %}
+    <details{% if not saved_episodes|default([]) %} open{% endif %}>
+      <summary>Add an episode</summary>
+      <form method="post" action="/saved-episodes">
+        <input type="hidden" name="csrf_token" value="{{ csrf }}">
+        <label>Show <input name="show" required></label>
+        <label>Episode title <input name="title" required></label>
+        <label>Episode page (optional) <input name="url" type="url" placeholder="https://"></label>
+        <button>Save episode</button>
+      </form>
+    </details>
+  </section>
+  {% if not daily %}
+  <section><p>No daily list is prepared yet.</p><form method="post" action="/prepare"><input type="hidden" name="csrf_token" value="{{ csrf }}"><button>Update recommendations</button></form></section>
+  {% else %}
+  {% for pick in daily.picks %}
+  {% if pick.kind != 'podcast' or not (saved_by_candidate|default({})).get(pick.candidate_id) %}
+  <section class="pick">
+    <p class="slot">{{ 'Lunch watch' if pick.slot == 'lunch' else 'Podcast to listen to' if pick.slot == 'listen' else 'Short read for a gap' }}</p>
+    <h2>{{ pick.title }}</h2>
+    <p>{{ pick.summary }}</p>
+    <p><strong>Why it is worthwhile:</strong> {{ pick.why }}</p>
+    {% if pick.duration_minutes %}<p>{{ pick.duration_minutes }} minutes{% if pick.stopping_point %} · useful stopping point: {{ pick.stopping_point }}{% endif %}</p>{% endif %}
+    <p>
+      <a href="{{ pick.url }}" target="_blank" rel="noopener noreferrer">{{ 'Watch on YouTube' if pick.kind == 'video' else 'Open episode' if pick.kind == 'podcast' else 'Open read' }}</a>
+      {% if pick.snipd_url %} · <a href="{{ pick.snipd_url }}" target="_blank" rel="noopener noreferrer">{{ 'Listen in Snipd' if pick.snipd_direct else 'Find this episode in Snipd' }}</a>{% endif %}
+      {% if pick.podcast_verified and pick.podcast_url and pick.podcast_url != pick.url %} · <a href="{{ pick.podcast_url }}" target="_blank" rel="noopener noreferrer">Verified podcast listing</a>{% endif %}
+    </p>
+    {% if pick.kind == 'podcast' %}
+      <form method="post" action="/save-podcast-pick/{{ pick.id }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf }}">
+        <input type="hidden" name="candidate_id" value="{{ pick.candidate_id }}">
+        <label>Show <input name="show" required></label>
+        <button>Save episode</button>
+      </form>
+    {% endif %}
+    {% if pick.kind == 'video' %}
+    <form id="video-note-{{ pick.id }}" method="post" action="/video-note/{{ pick.id }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf }}">
+      <input type="hidden" name="candidate_id" value="{{ pick.candidate_id }}">
+      <label>Video notes or ideas <textarea name="note" rows="3" required></textarea></label>
+      <button type="submit">Save note</button>
+      {% if note_saved_pick_id == pick.id %}<span class="save-status" role="status">Note saved.</span>{% endif %}
+    </form>
+    {% if pick.note_history %}<h3>Saved notes</h3><ol class="note-history">{% for entry in pick.note_history %}<li><time datetime="{{ entry.created_at }}">{{ entry.created_at[:16] | replace('T', ' ') }}</time><br>{{ entry.note }}</li>{% endfor %}</ol>{% endif %}
+    {% endif %}
+    {% if pick.kind != 'podcast' %}<p>Status: {{ pick.state }}{% if pick.kind == 'video' and pick.last_video_timestamp %} · last reported timestamp: {{ pick.last_video_timestamp }}{% endif %}</p>{% endif %}
+    {% if pick.state not in ['completed','dropped'] and pick.kind != 'podcast' %}
+    <form method="post" action="/feedback/{{ pick.id }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf }}">
+      <input type="hidden" name="candidate_id" value="{{ pick.candidate_id }}">
+      <label>What happened <select name="disposition"><option value="completed">Did this</option><option value="continue">Started / keep this</option><option value="not_started">Didn’t start</option><option value="not_interesting">Not interesting</option></select></label>
+      <label>Reason (optional) <input name="reason"></label>
+      {% if pick.kind == 'video' %}<label>Video timestamp (optional) <input name="video_timestamp" placeholder="1:00:33"></label>{% endif %}
+      <button>Save feedback</button>
+    </form>
+    {% endif %}
+    {% if pick.kind == 'podcast' and pick.state not in ['completed','dropped'] %}
+    <form method="post" action="/feedback/{{ pick.id }}"><input type="hidden" name="csrf_token" value="{{ csrf }}"><input type="hidden" name="candidate_id" value="{{ pick.candidate_id }}"><label>Recommendation <select name="disposition"><option value="not_started">Maybe later</option><option value="not_interesting">Not interested</option></select></label><button>Save feedback</button></form>
+    {% endif %}
+  </section>
+  {% endif %}
+  {% endfor %}
+  <section><p class="slot">Current nonfiction</p><h2>{{ book.nonfiction_title }}</h2><p>Reported position: page {{ book.reported_page }}{% if book.total_pages %} of {{ book.total_pages }}{% endif %}. Today’s target: page {{ daily.book_target }}.</p><p>This target does not change today after progress is saved.</p><form method="post" action="/book-position"><input type="hidden" name="csrf_token" value="{{ csrf }}"><label>Current book page <input type="number" min="0"{% if book.total_pages %} max="{{ book.total_pages }}"{% endif %} name="book_page" required></label><button>Save book position</button></form><p>Fiction: {{ book.fiction_title or 'None selected' }} — optional and untracked.</p></section>
+  <form method="post" action="/prepare"><input type="hidden" name="csrf_token" value="{{ csrf }}"><button>Update recommendations from latest feedback</button></form>
+  {% endif %}
+</main></body>
+</html>
