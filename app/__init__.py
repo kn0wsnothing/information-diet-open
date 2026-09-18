@@ -1,1 +1,1 @@
-"""Synthetic, local Information Diet showcase."""
+"""Information Diet local application."""

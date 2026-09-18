@@ -1,70 +1,89 @@
+import json
 import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
+
+from app import cli
+from app.store import Store
+
+
+CATALOG = {
+    "book": {"nonfiction_title": "A user book", "reported_page": 12, "daily_pace": 4, "fiction_title": ""},
+    "candidates": [
+        {"id": "video-one", "kind": "video", "title": "A user video", "summary": "A real user summary.",
+         "why": "A real reason.", "url": "https://www.youtube.com/watch?v=user-video",
+         "source_url": "https://www.youtube.com/watch?v=user-video", "duration_minutes": 20,
+         "inspection_method": "user review", "inspected_at": "2026-01-01T00:00:00+00:00", "provenance": "user catalog"},
+        {"id": "read-one", "kind": "read", "title": "A user read", "summary": "A real user summary.",
+         "why": "A real reason.", "url": "https://example.invalid/user-read", "inspection_method": "user review",
+         "inspected_at": "2026-01-01T00:00:00+00:00", "provenance": "user catalog"},
+        {"id": "podcast-one", "kind": "podcast", "title": "A user podcast", "summary": "A real user summary.",
+         "why": "A real reason.", "url": "https://example.invalid/user-podcast", "duration_minutes": 45,
+         "inspection_method": "user review", "inspected_at": "2026-01-01T00:00:00+00:00", "provenance": "user catalog"},
+    ],
+}
 
 
 class CandidateTests(unittest.TestCase):
-    def setUp(self):
-        self.directory = tempfile.TemporaryDirectory()
-        os.environ["SHOWCASE_DB"] = str(Path(self.directory.name) / "demo.sqlite3")
-        os.environ["SHOWCASE_CSRF_TOKEN"] = "candidate-test-token"
-        from app import main
-        self.web = main
+    def test_empty_template_rejects_before_database_then_user_catalog_prepares_all_slots(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"INFORMATION_DIET_DATA_DIR": directory}, clear=False):
+            self.assertEqual(0, cli.main(["init"]))
+            catalog_path = Path(directory) / "catalog.json"
+            self.assertEqual([], json.loads(catalog_path.read_text())["candidates"])
+            database = Path(directory) / "information-diet.sqlite3"
+            with self.assertRaises(SystemExit) as validate_error:
+                cli.main(["validate"])
+            self.assertEqual(2, validate_error.exception.code)
+            with self.assertRaises(SystemExit) as prepare_error:
+                cli.main(["prepare"])
+            self.assertEqual(2, prepare_error.exception.code)
+            self.assertFalse(database.exists())
+            catalog_path.write_text(json.dumps(CATALOG), encoding="utf-8")
+            self.assertEqual(0, cli.main(["validate"]))
+            self.assertEqual(0, cli.main(["prepare"]))
+            reopened = Store(database)
+            daily = reopened.get_list(cli.hkt_date())
+            self.assertEqual({"video", "read", "podcast"}, {pick["kind"] for pick in daily["picks"]})
+            self.assertEqual("A user book", reopened.book()["nonfiction_title"])
+            self.assertEqual(0, cli.main(["prepare"]))
 
-    def tearDown(self):
-        self.directory.cleanup()
-        os.environ.pop("SHOWCASE_DB", None)
-        os.environ.pop("SHOWCASE_CSRF_TOKEN", None)
+    def test_catalog_with_video_and_podcast_can_omit_optional_read(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"INFORMATION_DIET_DATA_DIR": directory}, clear=False):
+            catalog_path = Path(directory) / "catalog.json"
+            catalog = {**CATALOG, "candidates": [item for item in CATALOG["candidates"] if item["kind"] != "read"]}
+            catalog_path.write_text(json.dumps(catalog), encoding="utf-8")
+            self.assertEqual(0, cli.main(["validate"]))
+            self.assertEqual(0, cli.main(["prepare"]))
+            daily = Store(Path(directory) / "information-diet.sqlite3").get_list(cli.hkt_date())
+            self.assertEqual({"video", "podcast"}, {pick["kind"] for pick in daily["picks"]})
 
-    def test_synthetic_catalog_generates_all_three_slots(self):
-        target = self.web.store()
-        self.web.prepare_demo(target, "2026-01-03")
-        daily = target.get_list("2026-01-03")
-        self.assertEqual({"video", "read", "podcast"}, {pick["kind"] for pick in daily["picks"]})
-        self.assertEqual("Maps for Thought", target.book()["nonfiction_title"])
+    def test_saved_episode_progress_and_notes_survive_reopen(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = Path(directory) / "state.sqlite3"
+            store = Store(database)
+            store.setup()
+            store.seed_books(CATALOG["book"])
+            store.generate("2026-01-02", CATALOG, "now")
+            podcast = next(item for item in store.get_list("2026-01-02")["picks"] if item["kind"] == "podcast")
+            saved = store.add_saved_episode(podcast["title"], "A user show", candidate_id=podcast["candidate_id"], now="now")
+            store.update_saved_episode(saved["id"], "listening", "12:34", "later")
+            store.save_saved_episode_note(saved["id"], "Useful idea", "later")
+            reopened = Store(database).list_saved_episodes()[0]
+            self.assertEqual("listening", reopened["state"])
+            self.assertEqual("12:34", reopened["playback_position"])
+            self.assertEqual("Useful idea", reopened["notes"][0]["note"])
 
-    def test_reload_keeps_a_deferred_pick_until_explicit_refresh(self):
-        target = self.web.store()
-        day = "2026-01-02"
-        self.web.prepare_demo(target, day)
-        initial = target.get_list(day)["picks"][0]
-        target.feedback(initial["id"], "not_started", now="now", expected_candidate_id=initial["candidate_id"])
-        self.web.prepare_demo(target, day)
-        self.assertEqual("demo-video-1", target.get_list(day)["picks"][0]["candidate_id"])
-        self.web.prepare_demo(target, day, refresh=True)
-        self.assertEqual("demo-video-2", target.get_list(day)["picks"][0]["candidate_id"])
+    def test_empty_state_guides_manual_initialization(self):
+        from app.main import templates
 
-    def test_template_renders_the_synthetic_daily_page(self):
-        target = self.web.store()
-        self.web.prepare_demo(target, "2026-01-04")
-        daily = target.get_list("2026-01-04")
-        body = self.web.templates.get_template("home.html").render(
-            daily=daily, failed_today=None, book=target.book(), saved_episodes=[], saved_by_candidate={},
-            today="2026-01-04", csrf="candidate-test-token", note_saved_pick_id=None,
+        body = templates.get_template("home.html").render(
+            daily=None, failed_today=None, book=None, saved_episodes=[], saved_by_candidate={}, today="2026-01-02",
+            csrf="test-token", note_saved_pick_id=None, catalog_exists=False,
         )
-        self.assertTrue(
-            "How a small system supports attention" in body or "A second synthetic attention practice" in body
-        )
-        self.assertIn("An example long-form conversation", body)
-        self.assertIn("Maps for Thought", body)
-
-    def test_feedback_requires_matching_candidate_and_token(self):
-        target = self.web.store()
-        self.web.prepare_demo(target, "2026-01-02")
-        pick = target.get_list("2026-01-02")["picks"][0]
-        with self.assertRaises(Exception) as denied:
-            self.web.submit_feedback(pick["id"], "completed", reason="", video_timestamp="", podcast_timestamp="", book_page="",
-                                     candidate_id=pick["candidate_id"], csrf_token="wrong")
-        self.assertEqual(403, denied.exception.status_code)
-        with self.assertRaises(Exception) as stale:
-            self.web.submit_feedback(pick["id"], "completed", reason="", video_timestamp="", podcast_timestamp="", book_page="",
-                                     candidate_id="other", csrf_token="candidate-test-token")
-        self.assertEqual(400, stale.exception.status_code)
-        response = self.web.submit_feedback(pick["id"], "completed", reason="", video_timestamp="", podcast_timestamp="", book_page="",
-                                            candidate_id=pick["candidate_id"], csrf_token="candidate-test-token")
-        self.assertEqual(303, response.status_code)
-        self.assertEqual("completed", target.get_list("2026-01-02")["picks"][0]["state"])
+        self.assertIn("information-diet init", body)
+        self.assertNotIn("synthetic", body.casefold())
 
 
 if __name__ == "__main__":

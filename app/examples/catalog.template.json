@@ -1,0 +1,11 @@
+{
+  "book": {
+    "nonfiction_title": "Your nonfiction book",
+    "author": "",
+    "total_pages": null,
+    "reported_page": 0,
+    "daily_pace": 0,
+    "fiction_title": ""
+  },
+  "candidates": []
+}

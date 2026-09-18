@@ -1,0 +1,49 @@
+{
+  "book": {
+    "nonfiction_title": "A book you are reading",
+    "author": "Author name",
+    "total_pages": 300,
+    "reported_page": 42,
+    "daily_pace": 8,
+    "fiction_title": "Optional fiction book"
+  },
+  "candidates": [
+    {
+      "id": "video-replace-this-id",
+      "kind": "video",
+      "title": "A video you have saved",
+      "summary": "What the video covers, in your own words.",
+      "why": "Why you want to spend time on it.",
+      "url": "https://www.youtube.com/watch?v=replace-this-id",
+      "source_url": "https://www.youtube.com/watch?v=replace-this-id",
+      "duration_minutes": 20,
+      "stopping_point": "10:00",
+      "inspection_method": "your own review",
+      "inspected_at": "2026-01-01T00:00:00+00:00",
+      "provenance": "your saved links"
+    },
+    {
+      "id": "read-replace-this-id",
+      "kind": "read",
+      "title": "An article you have saved",
+      "summary": "What the article covers, in your own words.",
+      "why": "Why you want to read it.",
+      "url": "https://example.invalid/replace-this-read",
+      "inspection_method": "your own review",
+      "inspected_at": "2026-01-01T00:00:00+00:00",
+      "provenance": "your saved links"
+    },
+    {
+      "id": "podcast-replace-this-id",
+      "kind": "podcast",
+      "title": "A podcast episode you have saved",
+      "summary": "What the episode covers, in your own words.",
+      "why": "Why you want to hear it.",
+      "url": "https://example.invalid/replace-this-episode",
+      "duration_minutes": 45,
+      "inspection_method": "your own review",
+      "inspected_at": "2026-01-01T00:00:00+00:00",
+      "provenance": "your saved links"
+    }
+  ]
+}

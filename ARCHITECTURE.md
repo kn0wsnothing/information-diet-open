@@ -1,11 +1,11 @@
 # Architecture
 
-The candidate is a FastAPI application backed by SQLite. `app/store.py` contains the daily selection and feedback logic. `app/main.py` presents that logic through a small HTML interface.
+Information Diet is a local FastAPI application backed by SQLite. `app/main.py` contains the web routes, `app/store.py` owns the selection and persistence rules, and `app/catalog.py` validates the user-maintained catalog.
 
-SQLite is intentional here: the page has one local user and needs durable state across reloads, not concurrent multi-user coordination. State mutations use short transactions. The database path is explicit through `SHOWCASE_DB`; when omitted it remains inside the candidate directory.
+The catalog is a local JSON file. `information-diet init` creates an empty template, `validate` checks it, and `prepare` writes a dated list into SQLite. No command fetches URLs or contacts a third-party service. This keeps the first installation useful for a person with a small set of saved links and avoids coupling daily use to an account, API, or importer.
 
-The application stores candidate identifiers with feedback. This prevents a late browser submission from applying to a replacement recommendation. The selection logic also separates `completed`, `continue`, `not_started`, and `not_interesting`, because these states have different consequences for the next list.
+`app/config.py` resolves the data directory and supports explicit environment overrides for the catalog and database. The server binds to loopback by default because this local application has no authentication. SQLite state remains after the process restarts.
 
-The bundled `examples/catalog.json` is synthetic. The public entrypoint reads only that file and a candidate-local SQLite path. It has no refresh adapters, services, source manifests, environment configuration for live state, or network calls.
+Every feedback form carries the selected candidate identifier. The store compares that identifier inside its transaction, which prevents a stale browser submission from changing a recommendation that an explicit refresh already replaced. The same state layer persists media notes, listening progress, saved episodes, and book pages.
 
-The private system remains authoritative. This export demonstrates its application behavior and is not an export of a personal catalog, history, notes, or operational setup. It is intentionally a local demo: it does not provide authentication, backups, source ingestion, or production service management.
+The repository does not include hosted accounts, automatic source ingestion, backups, or remote connectors. Those are separate operational choices, not hidden behavior in the local application.

@@ -1,34 +1,52 @@
 # Information Diet
 
-Information Diet is a small personal workspace for deciding what to read, watch, and listen to today. It turns a saved-media backlog into a short plan for the day: one video, one optional read, and one podcast.
+Information Diet is a local application for choosing what to read, watch, and listen to today from your own saved-media backlog. It replaces an unbounded queue with a short daily list: one video, one optional read, and one podcast.
 
-![Daily page with fictional video, reading, and listening examples](assets/information-diet.png)
+![Example daily page using fictional video, reading, and listening entries](assets/information-diet.png)
 
-The full system prepares a short daily list with one video, one optional short read, and one podcast. It keeps that list stable through the day. You record what happened rather than pretend every recommendation was finished: completed, continue, did not start, or not interesting. That feedback affects later choices. An unfinished video or read can carry forward; a completed item does not return. A “did not start” item remains available until an explicit refresh chooses a replacement. The system therefore distinguishes “not today” from “never.”
+You supply the catalog. The app stores the choices and progress on your computer. A day’s list stays stable through reloads and restarts. Record whether you completed an item, want to continue it, did not start it, or are not interested. An unfinished item can carry forward; a completed item does not return. “Did not start” is distinct from rejection and is reconsidered only when you explicitly refresh the day.
 
-Imagine opening the page at lunch. It might show a 24-minute video with a useful stopping point, a short article for a gap between meetings, and one long podcast for later. After ten minutes of the video, you can save its timestamp and a note. If you save the podcast, it moves to a separate listening list where you can record position and notes. The book section keeps a reported page number and a fixed target for the day, without creating catch-up debt.
+The page also has a separate saved-episodes list for podcasts. You can save a suggested episode or add one manually, then keep its listening status, position, and notes. Video notes and timestamps stay with the selected item. A nonfiction book has a reported page number and a fixed daily target, so missed pages do not become catch-up debt.
 
-## What you can inspect here
+## Install and create your catalog
 
-This repository is a local, runnable version of that workflow. It uses FastAPI for the page and SQLite for durable local state. The included catalog is fictional, but the daily selection, feedback, progress, saved-episode, and book-target logic are real application code.
-
-SQLite suits the design because one local user needs state that survives a restart, rather than a multi-user service. Each change uses a short database transaction. Feedback carries the identifier of the recommendation the page displayed, so a late form submission cannot update a replacement item. A form token from the displayed page rejects submissions that did not come from that page.
-
-The full system has a personal, inspected catalog and operating setup that are not included here. This demo has no account system, source ingestion, remote calls, backups, or service management. Its sample catalog exists only to make the behavior safe to run and inspect.
-
-## Run it
-
-Use Python 3.11 or later.
+Use Python 3.11 or later. Installation creates a normal local Python package with an `information-diet` command.
 
 ```bash
+git clone https://github.com/kn0wsnothing/information-diet-showcase.git information-diet
+cd information-diet
 python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-SHOWCASE_DB="$PWD/var/demo.sqlite3" .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8422
+.venv/bin/pip install .
+.venv/bin/information-diet init
 ```
 
-Open `http://127.0.0.1:8422`. The first page load creates a synthetic daily list. Mark the video as “Started / keep this,” add a timestamp, or save the podcast and its listening position. The SQLite file at `var/demo.sqlite3` preserves those changes; delete it when you want a fresh demo.
+`init` writes `catalog.json` to `~/.local/share/information-diet/` by default. Set `INFORMATION_DIET_DATA_DIR` before running it to use another directory. The template is deliberately empty: edit it with your own book and saved links before preparing a list.
 
-The **Update recommendations** button is deliberate: it is the one action that can reconsider a deferred item. Reloading the page does not reshuffle the day’s list.
+Each candidate needs an `id`, `kind` (`video`, `read`, or `podcast`), title, summary, reason, direct URL, inspection method, inspection date, and provenance. “Inspection” simply records how you checked the item before adding it; “provenance” records where you saved or found it. Videos and podcasts also need a positive duration. A video’s `source_url` must be a native YouTube watch link; a podcast’s `url` must be an HTTPS episode link.
+
+Copy [the complete catalog example](app/examples/catalog.example.json) when you want a starting shape. Replace every title, URL, summary, reason, and placeholder identifier with your own material. `book` accepts `nonfiction_title`, optional `author` and `total_pages`, `reported_page`, `daily_pace`, and optional `fiction_title`. The [catalog validation code](app/catalog.py) is the precise reference for optional podcast and video links.
+
+This first version uses a manual JSON catalog by design. It works with links you have already chosen, requires no account or API key, and makes no network request while validating or preparing a list. Importers and source connectors are not included.
+
+## Use it every day
+
+```bash
+.venv/bin/information-diet validate
+.venv/bin/information-diet prepare
+.venv/bin/information-diet serve
+```
+
+Open `http://127.0.0.1:8422`. The app is loopback-only by default because it has no user authentication. Do not expose it directly to a network.
+
+`prepare` reads your catalog and creates today’s list. It does not create sample recommendations. Run it again tomorrow for a new list. Use `prepare --refresh` only when you want the app to reconsider today’s deferred recommendations.
+
+The database defaults to `~/.local/share/information-diet/information-diet.sqlite3`. Set `INFORMATION_DIET_DB` or `INFORMATION_DIET_CATALOG` to use separate paths. Stop and start `serve` again to confirm that saved episodes, notes, feedback, and book progress remain.
+
+## Engineering choices and limits
+
+The application is FastAPI plus SQLite. SQLite fits one person’s durable local state without requiring a server database. Each mutation runs in a short transaction, and feedback includes the identifier of the recommendation shown in the form so a stale submission cannot update a replacement item. Forms use a per-process token to reject submissions that did not come from the displayed page.
+
+The repository contains the real routing, selection, persistence, template, and catalog-validation code. It does not include accounts, a hosted deployment, automatic source ingestion, backups, or remote service integrations.
 
 ## Test
 
@@ -36,7 +54,7 @@ The **Update recommendations** button is deliberate: it is the one action that c
 .venv/bin/python -m unittest discover -s tests -v
 ```
 
-The tests create temporary SQLite databases. They cover initial selection, feedback validation, rendered page content, and the difference between a reload and an explicit refresh.
+Tests use temporary databases and catalogs. They cover catalog validation, selection and refresh behavior, stale feedback, saved episodes, notes, progress, and persistence.
 
 ## License and maintenance
 

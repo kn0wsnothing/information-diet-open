@@ -41,7 +41,7 @@
     </details>
   </section>
   {% if not daily %}
-  <section><p>No daily list is prepared yet.</p><form method="post" action="/prepare"><input type="hidden" name="csrf_token" value="{{ csrf }}"><button>Update recommendations</button></form></section>
+  <section>{% if catalog_exists %}<p>No daily list is prepared yet.</p><form method="post" action="/prepare"><input type="hidden" name="csrf_token" value="{{ csrf }}"><button>Prepare today’s list</button></form>{% else %}<p>No catalog is configured. Run <code>information-diet init</code>, edit the catalog, then run <code>information-diet prepare</code>.</p>{% endif %}</section>
   {% else %}
   {% for pick in daily.picks %}
   {% if pick.kind != 'podcast' or not (saved_by_candidate|default({})).get(pick.candidate_id) %}

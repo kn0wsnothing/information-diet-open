@@ -1,8 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
-name = "information-diet-showcase"
+name = "information-diet"
 version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = ["fastapi>=0.115,<1", "uvicorn[standard]>=0.30,<1", "jinja2>=3.1,<4", "python-multipart>=0.0.9,<1"]
+
+[project.scripts]
+information-diet = "app.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.setuptools.package-data]
+app = ["templates/*.html", "static/*.css", "examples/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
