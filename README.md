@@ -1,18 +1,16 @@
 # Information Diet
 
-Information Diet is a local application for choosing what to read, watch, and listen to today from your own saved-media backlog. It replaces an unbounded queue with a short daily list: one video, one optional read, and one podcast.
+Information Diet is a local daily media planner. It turns your saved videos, articles, and podcast episodes into a short list: one video, one optional read, and one podcast. The browser page is the human daily surface for feedback, notes, listening progress, saved episodes, and book pages.
 
 ![Example daily page using fictional video, reading, and listening entries](assets/information-diet.png)
 
-You supply the catalog. The app stores the choices and progress on your computer. A day’s list stays stable through reloads and restarts. Record whether you completed an item, want to continue it, did not start it, or are not interested. An unfinished item can carry forward; a completed item does not return. “Did not start” is distinct from rejection and is reconsidered only when you explicitly refresh the day.
+The app does not collect content or contact external services. You provide a local catalog of links you have already chosen. SQLite keeps the list and your progress through browser restarts.
 
-The page also has a separate saved-episodes list for podcasts. You can save a suggested episode or add one manually, then keep its listening status, position, and notes. Video notes and timestamps stay with the selected item. A nonfiction book has a reported page number and a fixed daily target, so missed pages do not become catch-up debt.
+## Set up once
 
-## Install and create your catalog
+You need Python 3.11 or later.
 
-Use Python 3.11 or later. Installation creates a normal local Python package with an `information-diet` command.
-
-```bash
+```sh
 git clone https://github.com/kn0wsnothing/information-diet-showcase.git information-diet
 cd information-diet
 python3 -m venv .venv
@@ -20,42 +18,28 @@ python3 -m venv .venv
 .venv/bin/information-diet init
 ```
 
-`init` writes `catalog.json` to `~/.local/share/information-diet/` by default. Set `INFORMATION_DIET_DATA_DIR` before running it to use another directory. The template is deliberately empty: edit it with your own book and saved links before preparing a list.
+`init` writes an empty catalog to `~/.local/share/information-diet/catalog.json`. The database is `~/.local/share/information-diet/information-diet.sqlite3`. Set `INFORMATION_DIET_DATA_DIR` before setup to use another directory. The catalog template is empty by design.
 
-Each candidate needs an `id`, `kind` (`video`, `read`, or `podcast`), title, summary, reason, direct URL, inspection method, inspection date, and provenance. “Inspection” simply records how you checked the item before adding it; “provenance” records where you saved or found it. Videos and podcasts also need a positive duration. A video’s `source_url` must be a native YouTube watch link; a podcast’s `url` must be an HTTPS episode link.
+## Work with an assistant
 
-Copy [the complete catalog example](app/examples/catalog.example.json) when you want a starting shape. Replace every title, URL, summary, reason, and placeholder identifier with your own material. `book` accepts `nonfiction_title`, optional `author` and `total_pages`, `reported_page`, `daily_pace`, and optional `fiction_title`. The [catalog validation code](app/catalog.py) is the precise reference for optional podcast and video links.
+Use a coding assistant with local terminal and filesystem access, such as Codex or Claude Code. Give it this repository and [AGENT_GUIDE.md](AGENT_GUIDE.md); a chat only assistant cannot run this local app or inspect your catalog.
 
-This first version uses a manual JSON catalog by design. It works with links you have already chosen, requires no account or API key, and makes no network request while validating or preparing a list. Importers and source connectors are not included.
+Paste this prompt to set it up:
 
-## Use it every day
+> Clone https://github.com/kn0wsnothing/information-diet-showcase.git, install it in an isolated Python environment, initialize Information Diet, and read `AGENT_GUIDE.md`. Do not add catalog entries yet. Tell me where the local catalog and database are stored.
 
-```bash
-.venv/bin/information-diet validate
-.venv/bin/information-diet prepare
-.venv/bin/information-diet serve
-```
+Paste this prompt after installation:
 
-Open `http://127.0.0.1:8422`. The app is loopback-only by default because it has no user authentication. Do not expose it directly to a network.
+> Read `AGENT_GUIDE.md` in my Information Diet checkout. Help me turn my saved links into a valid local catalog. Do not browse, fetch, or invent media. Show me the proposed catalog before writing it, then validate and prepare today’s list when I approve it.
 
-`prepare` reads your catalog and creates today’s list. It does not create sample recommendations. Run it again tomorrow for a new list. Use `prepare --refresh` only when you want the app to reconsider today’s deferred recommendations.
+Your catalog, notes, and local database may be sent to whichever AI provider you choose if your assistant reads them. Review that provider’s data policy before granting file access. Information Diet itself has no AI integration, account, or publishing feature.
 
-The database defaults to `~/.local/share/information-diet/information-diet.sqlite3`. Set `INFORMATION_DIET_DB` or `INFORMATION_DIET_CATALOG` to use separate paths. Stop and start `serve` again to confirm that saved episodes, notes, feedback, and book progress remain.
+## What happens each day
 
-## Engineering choices and limits
+After a prepared list, open `http://127.0.0.1:8422`. Record whether an item was completed, should continue, was not started, or is not interesting. A completed item does not return. A not started item is reconsidered only after an explicit refresh. The local server has no authentication and binds to loopback by default.
 
-The application is FastAPI plus SQLite. SQLite fits one person’s durable local state without requiring a server database. Each mutation runs in a short transaction, and feedback includes the identifier of the recommendation shown in the form so a stale submission cannot update a replacement item. Forms use a per-process token to reject submissions that did not come from the displayed page.
+The public app includes real FastAPI routing, SQLite state, catalog validation, selection, feedback, media notes, saved episodes, and book progress. It does not include automatic importing, source connectors, hosted accounts, backups, or remote service integrations.
 
-The repository contains the real routing, selection, persistence, template, and catalog-validation code. It does not include accounts, a hosted deployment, automatic source ingestion, backups, or remote service integrations.
+## License
 
-## Test
-
-```bash
-.venv/bin/python -m unittest discover -s tests -v
-```
-
-Tests use temporary databases and catalogs. They cover catalog validation, selection and refresh behavior, stale feedback, saved episodes, notes, progress, and persistence.
-
-## License and maintenance
-
-Copyright (c) 2026 John. Released under the [MIT License](LICENSE). This project has one maintainer and does not accept external contributions; forks and reuse are welcome under the license. See [CONTRIBUTING.md](CONTRIBUTING.md).
+MIT Copyright 2026 John. See [LICENSE](LICENSE) and [CONTRIBUTING.md](CONTRIBUTING.md).
