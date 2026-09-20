@@ -1,6 +1,6 @@
 # Information Diet agent guide
 
-Use the installed `information-diet` command and the local browser page. Do not edit the SQLite database directly. Do not browse, scrape, fetch URLs, or invent catalog facts. The application itself makes no network request while validating or preparing a list.
+Use the installed `information-diet` command and the local browser page as the daily media tool. Do not edit the SQLite database directly. Do not browse, scrape, fetch URLs, or invent catalog facts. The application itself makes no network request while validating or preparing a list.
 
 ## Files, setup, and status
 

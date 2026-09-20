@@ -11,7 +11,7 @@ The app does not collect content or contact external services. You provide a loc
 You need Python 3.11 or later.
 
 ```sh
-git clone https://github.com/kn0wsnothing/information-diet-showcase.git information-diet
+git clone https://github.com/kn0wsnothing/information-diet-open.git information-diet
 cd information-diet
 python3 -m venv .venv
 .venv/bin/pip install .
@@ -26,7 +26,7 @@ Use a coding assistant with local terminal and filesystem access, such as Codex 
 
 Paste this prompt to set it up:
 
-> Clone https://github.com/kn0wsnothing/information-diet-showcase.git, install it in an isolated Python environment, initialize Information Diet, and read `AGENT_GUIDE.md`. Do not add catalog entries yet. Tell me where the local catalog and database are stored.
+> Clone https://github.com/kn0wsnothing/information-diet-open.git, install it in an isolated Python environment, initialize Information Diet, and read `AGENT_GUIDE.md`. Do not add catalog entries yet. Tell me where the local catalog and database are stored.
 
 Paste this prompt after installation:
 
@@ -38,7 +38,7 @@ Your catalog, notes, and local database may be sent to whichever AI provider you
 
 After a prepared list, open `http://127.0.0.1:8422`. Record whether an item was completed, should continue, was not started, or is not interesting. A completed item does not return. A not started item is reconsidered only after an explicit refresh. The local server has no authentication and binds to loopback by default.
 
-The public app includes real FastAPI routing, SQLite state, catalog validation, selection, feedback, media notes, saved episodes, and book progress. It does not include automatic importing, source connectors, hosted accounts, backups, or remote service integrations.
+Information Diet includes FastAPI routing, SQLite state, catalog validation, selection, feedback, media notes, saved episodes, and book progress. It does not include automatic importing, source connectors, hosted accounts, backups, or remote service integrations.
 
 ## License
 
