@@ -1,5 +1,7 @@
 # Information Diet
 
+By John Artman.
+
 Information Diet is a local daily media planner. It turns your saved videos, articles, and podcast episodes into a short list: one video, one optional read, and one podcast. The browser page is the human daily surface for feedback, notes, listening progress, saved episodes, and book pages.
 
 ![Example daily page using fictional video, reading, and listening entries](assets/information-diet.png)
@@ -42,4 +44,4 @@ Information Diet includes FastAPI routing, SQLite state, catalog validation, sel
 
 ## License
 
-MIT Copyright 2026 John. See [LICENSE](LICENSE) and [CONTRIBUTING.md](CONTRIBUTING.md).
+MIT Copyright 2026 John Artman. Issues are welcome. See [LICENSE](LICENSE) and [CONTRIBUTING.md](CONTRIBUTING.md).
